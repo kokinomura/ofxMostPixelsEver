@@ -36,40 +36,40 @@ void ofxMPEClient::setDefaults(){
 	lHeight = 480;
 	xOffset = 0;
 	yOffset = 0;
-    
+	
 	retryConnection = true;
 	triggerFrame = false;
-    
+	
 	lastConnectionAttempt = 0;
 	isAttemptingToConnect = false;
 	simulationMode = false;
-    
+	
 	frameCount = 0;
 	fps        = 0.0f;
 	lastMs     = 0;
-    
+	
 	allConnected = false;
 	lastHeartbeatTime = 0.0;
-    
+	
 	outgoingMessage = "";
 	outgoingMessage.reserve(1000);
 	lastmsg = "";
-    
+	
 	goFullScreen = false;
 	offsetWindow = false;
-    
+	
 	bEnable3D    = false;
 	fieldOfView = 30.f;
-    
+	
 	clientName = "noname";
-    
+	
 }
 
 //--------------------------------------------------------------
 void ofxMPEClient::setup(string _fileString, bool updateOnMainThread) {
-    
+
     useMainThread = updateOnMainThread;
-    
+
     fps = 0;
     loadIniFile(_fileString);
     frameCount = 0;
@@ -87,11 +87,11 @@ void ofxMPEClient::useSimulationMode(int framesPerSecond) {
 
 //--------------------------------------------------------------
 void ofxMPEClient::start() {
-    
-    tcpClient.setVerbose(verbose);
+
+    ofSetLogLevel(verbose ? OF_LOG_VERBOSE : OF_LOG_NOTICE);
 	tcpClient.setMessageDelimiter("\n");
     ofAddListener(ofEvents().draw, this, &ofxMPEClient::draw);
-    
+
     if (!simulationMode && !tcpClient.setup(hostName, serverPort)) {
         error("TCP failed to connect to port " + ofToString(serverPort));
         lastConnectionAttempt = ofGetElapsedTimef();
@@ -122,44 +122,44 @@ void ofxMPEClient::draw(ofEventArgs& e)
 {
     //no blocking
     if(useMainThread){
-        
+		
 		lock();
-        
+
         for(int i = 0; i < dataMessage.size(); i++){
             ofxMPEEventArgs e;
             e.message = dataMessage[i];
             e.frame = getFrameCount();
             //cout << "sending message in update " << e.frame << " message " << e.message << endl;
-            
+
             ofNotifyEvent(ofxMPEEvents.mpeMessage, e);
-            
+
         }
         dataMessage.clear();
-        
+
         if(shouldReset){
             reset();
         }
-        
+
         if(triggerFrame){
+            
+            //cout << ofGetWidth() << " :: " << lWidth << "  " << ofGetHeight() << " :: " << lHeight << endl;
+            if(ofGetWindowPositionX() != xOffset || ofGetWindowPositionY() != yOffset || ofGetWidth() != lWidth || ofGetHeight() != lHeight){
+                setupViewport();
+            }
             //ofLog(OF_LOG_VERBOSE, "Trigger Event :: ! with frame count " + frameCount);
             triggerFrame = false;
             ofxMPEEventArgs e;
             e.message = "";
             e.frame = frameCount;
 			ofNotifyEvent(ofxMPEEvents.mpeFrame, e);
-            
+
             if(!simulationMode){
                 done();
             }
-            
+
         }
-        
+
         unlock();
-    }
-    
-    //cout << ofGetWidth() << " :: " << lWidth << "  " << ofGetHeight() << " :: " << lHeight << endl;
-    if(ofGetWindowPositionX() != xOffset || ofGetWindowPositionY() != yOffset || ofGetWidth() != lWidth || ofGetHeight() != lHeight){
-        setupViewport();
     }
 }
 
@@ -174,7 +174,7 @@ void ofxMPEClient::loadIniFile(string _fileString) {
         error("ERROR loading XML file!");
         return;
     }
-    
+
     // parse INI file
     hostName   = xmlReader.getValue("settings:server:ip", "127.0.0.1", 0);
     serverPort = xmlReader.getValue("settings:server:port", 7887, 0);
@@ -189,30 +189,30 @@ void ofxMPEClient::loadIniFile(string _fileString) {
         cout << "opting out of frame lock" << endl;
     }
     cout << "***MPE:: HOST IS " << hostName << " Server Port is " << serverPort << endl;
-    
+
     setLocalDimensions(xmlReader.getValue("settings:local_dimensions:width",  640, 0),
                        xmlReader.getValue("settings:local_dimensions:height", 480, 0));
-    
+
     setOffsets(xmlReader.getValue("settings:local_location:x", 0, 0),
                xmlReader.getValue("settings:local_location:y", 0, 0));
-    
+
     setMasterDimensions(xmlReader.getValue("settings:master_dimensions:width",  640, 0),
                         xmlReader.getValue("settings:master_dimensions:height", 480, 0));
-    
+
     goFullScreen = xmlReader.getValue("settings:go_fullscreen", "false", 0).compare("true") == 0;
     offsetWindow = xmlReader.getValue("settings:offset_window", "false", 0).compare("true") == 0;
-    
+
     setupViewport();
-    
+
     if (xmlReader.getValue("settings:debug", 0, 0) == 1){
         verbose = true;
     }
-    
+
     if(xmlReader.getValue("settings:simulation:on", 0, 0) == 1){
         useSimulationMode(xmlReader.getValue("settings:simulation:fps", 30));
         cout << "using simulation mode" << endl;
     }
-    
+
     log("Settings: server = " + hostName + ":" + ofToString(serverPort) + ",  id = " + ofToString(id)
         + ", local dimensions = " + ofToString(lWidth) + ", " + ofToString(lHeight)
         + ", location = " + ofToString(xOffset) + ", " + ofToString(yOffset));
@@ -224,8 +224,10 @@ void ofxMPEClient::setupViewport()
     if (goFullScreen){
         ofSetFullscreen(true);
     }
+
     if(offsetWindow){
-        ofSetWindowPosition(xOffset, yOffset);
+//        ofSetWindowPosition(xOffset, yOffset);
+        ofTranslate(-xOffset, -yOffset);
         ofSetWindowShape(lWidth, lHeight);
     }
 }
@@ -324,14 +326,14 @@ void ofxMPEClient::placeScreen2D() {
 // Restores the viewing area for this screen when rendering in 3D.
 //--------------------------------------------------------------
 void ofxMPEClient::restoreCamera() {
-    gluLookAt(ofGetWidth()/2.f, ofGetHeight()/2.f, cameraZ,
-              ofGetWidth()/2.f, ofGetHeight()/2.f, 0,
-              0, 1, 0);
-    
-    float mod = .1f;
-    glFrustum(-(ofGetWidth()/2.f)*mod, (ofGetWidth()/2.f)*mod,
-              -(ofGetHeight()/2.f)*mod, (ofGetHeight()/2.f)*mod,
-              cameraZ*mod, 10000);
+//    gluLookAt(ofGetWidth()/2.f, ofGetHeight()/2.f, cameraZ,
+//              ofGetWidth()/2.f, ofGetHeight()/2.f, 0,
+//              0, 1, 0);
+//
+//    float mod = .1f;
+//    glFrustum(-(ofGetWidth()/2.f)*mod, (ofGetWidth()/2.f)*mod,
+//              -(ofGetHeight()/2.f)*mod, (ofGetHeight()/2.f)*mod,
+//              cameraZ*mod, 10000);
 }
 
 
@@ -339,25 +341,25 @@ void ofxMPEClient::restoreCamera() {
 // Places the viewing area for this screen when rendering in 3D.
 //--------------------------------------------------------------
 void ofxMPEClient::placeScreen3D() {
-    gluLookAt(mWidth/2.f, mHeight/2.f, cameraZ,
-              mWidth/2.f, mHeight/2.f, 0,
-              0, 1, 0);
-    
-    
-    // The frustum defines the 3D clipping plane for each Client window!
-    float mod = .1f;
-    float left   = (xOffset - mWidth/2)*mod;
-    float right  = (xOffset + lWidth - mWidth/2)*mod;
-    float top    = (yOffset - mHeight/2)*mod;
-    float bottom = (yOffset + lHeight-mHeight/2)*mod;
-    
-    //float far    = 10000;
-    float a = 10;
-    float Far = 10000;
-    float Near   = cameraZ*mod;
-    glFrustum(left, right,
-              top, bottom,
-              Near, Far);
+//    gluLookAt(mWidth/2.f, mHeight/2.f, cameraZ,
+//              mWidth/2.f, mHeight/2.f, 0,
+//              0, 1, 0);
+//
+//
+//    // The frustum defines the 3D clipping plane for each Client window!
+//    float mod = .1f;
+//    float left   = (xOffset - mWidth/2)*mod;
+//    float right  = (xOffset + lWidth - mWidth/2)*mod;
+//    float top    = (yOffset - mHeight/2)*mod;
+//    float bottom = (yOffset + lHeight-mHeight/2)*mod;
+//
+//    //float far    = 10000;
+//    float a = 10;
+//    float Far = 10000;
+//    float Near   = cameraZ*mod;
+//    glFrustum(left, right,
+//              top, bottom,
+//              Near, Far);
 }
 
 
@@ -404,23 +406,25 @@ void ofxMPEClient::error(string _str) {
 void ofxMPEClient::threadedFunction() {
     log("Running!");
     
-    
+
     
     if(frameLock){
         // let the server know that this client is ready to start
-        send("S" + delimiter + ofToString(id) + delimiter + clientName);
+        string str = "S" + delimiter + ofToString(id) + delimiter + clientName;
+        send(str);
     }
     else{
         //start a listener
-        send("A" + delimiter + ofToString(id) + clientName + delimiter);
+        string str = "A" + delimiter + ofToString(id) + clientName + delimiter;
+        send(str);
     }
-    
+
     while(isThreadRunning()) {
-        
+
         if(frameLock && simulationMode){
             
             float now = ofGetElapsedTimef();
-            
+			
             if(now - lastFrameTime > 1./simulatedFPS){
                 if(!useMainThread){
                     ofxMPEEventArgs e;
@@ -431,25 +435,25 @@ void ofxMPEClient::threadedFunction() {
                 else {
                     triggerFrame = true;
                 }
-                
+
                 lastFrameTime = now;
                 frameCount++;
             }
-            
+
             ofSleepMillis(5);
             continue;
         }
+
         
-        
-        //        if (allConnected && ofGetElapsedTimef() - lastHeartbeatTime > 2.0) {
-        //            //we lost connection... manually disconnect and join reset cycle
-        //            if(tcpClient.close()){
-        //                ofLog(OF_LOG_ERROR, "ofxMPEClient -- server connection timed out. Closing and entering reconnect loop.");
-        //            }
-        //            else{
-        //                ofLog(OF_LOG_ERROR, "ofxMPEClient -- Error when closing TCP connection after timeout.");            
-        //            }
-        //        }
+//        if (allConnected && ofGetElapsedTimef() - lastHeartbeatTime > 2.0) {
+//            //we lost connection... manually disconnect and join reset cycle
+//            if(tcpClient.close()){
+//                ofLog(OF_LOG_ERROR, "ofxMPEClient -- server connection timed out. Closing and entering reconnect loop.");
+//            }
+//            else{
+//                ofLog(OF_LOG_ERROR, "ofxMPEClient -- Error when closing TCP connection after timeout.");            
+//            }
+//        }
         
         if(!tcpClient.isConnected()){
             //we lost connection, start the retry loop and kill the thread
@@ -463,21 +467,21 @@ void ofxMPEClient::threadedFunction() {
             else{
                 reset();
             }
-            
+
 			error("lost connection to server");
             
-            
+			
             //break the loop because we'll need to restart
             return;
         }
-        
+
         if (!useMainThread || (useMainThread && lock()) ) {
             string msg = tcpClient.receive();
             if (msg.length() > 0 && lastmsg != msg) {
                 read(msg);
                 lastmsg = msg;
             }
-            
+
             if(useMainThread){
                 unlock();
             }
@@ -491,7 +495,7 @@ void ofxMPEClient::threadedFunction() {
 //--------------------------------------------------------------
 void ofxMPEClient::read(string _serverInput) {
     log("Receiving: " + _serverInput);
-    
+
     char c = _serverInput.at(0);
     if(c == 'R'){
         if(frameCount != 0){
@@ -518,23 +522,23 @@ void ofxMPEClient::read(string _serverInput) {
         int fc = ofToInt( info[1] );
 		//cout << "frameCount is " << fc << " and our current frame is " << frameCount << endl;
         if (frameLock && fc == frameCount) {
-            //            frameCount++;
+//            frameCount++;
             
             // calculate new framerate
             float nowms = ofGetElapsedTimeMillis();
             float ms = nowms - lastMs;
             fps += ((1000.f / ms) - fps)*.2;
             lastMs = nowms;
-            
+
             if(!useMainThread){
-                
+
                 //cout << "trigger frame " << frameCount << endl;
-                
+
                 ofxMPEEventArgs e;
                 e.message = "";
                 e.frame = frameCount;
                 ofNotifyEvent(ofxMPEEvents.mpeFrame, e);
-                
+
                 done();
             }
             else {
@@ -542,12 +546,12 @@ void ofxMPEClient::read(string _serverInput) {
                 triggerFrame = true;
             }
         }
-        
-        //JG switched to after done event
+
+         //JG switched to after done event
         if (info.size() > 1) {
             // there is a message here with the frame event
             info.erase(info.begin());
-            
+
             for(int i = 0; i < info.size(); i++){
                 if(useMainThread){
                     dataMessage.push_back( info[i] );
@@ -556,11 +560,11 @@ void ofxMPEClient::read(string _serverInput) {
                     ofxMPEEventArgs e;
                     e.message = info[i];
                     e.frame = getFrameCount();
-                    
+
                     //cout << "sending message in update " << e.frame << " message " << e.message << endl;
-                    
+
                     ofNotifyEvent(ofxMPEEvents.mpeMessage, e);
-                    
+
                 }
                 //cout << "MPE frame " << getFrameCount() << " receiving data message " << dataMessage[i] << endl;
             }
@@ -593,7 +597,7 @@ void ofxMPEClient::reset()
 // Send a message to the server.
 //--------------------------------------------------------------
 void ofxMPEClient::send(string &_msg) {
-    
+
     //_msg += "\n";
     if(!simulationMode && frameLock){
         //log("Sending: " + _msg);
@@ -620,7 +624,7 @@ void ofxMPEClient::broadcast(const string &_msg) {
 //--------------------------------------------------------------
 //TODO: if done has already been called, dont call it again
 void ofxMPEClient::done() {
-    //    rendering = false;
+//    rendering = false;
     string msg;
 	msg.reserve(256);
 	msg += "D";
@@ -634,7 +638,7 @@ void ofxMPEClient::done() {
         msg += outgoingMessage;
 		outgoingMessage.clear();
     }
-    
+		
     send(msg);
 	frameCount++;
 }
@@ -649,4 +653,5 @@ void ofxMPEClient::stop() {
         ofRemoveListener(ofEvents().draw, this, &ofxMPEClient::draw);
     }
 }
+
 
