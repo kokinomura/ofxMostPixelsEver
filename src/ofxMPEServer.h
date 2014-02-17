@@ -49,6 +49,8 @@ class ofxMPEServer : public ofThread
 	void printClientStatus();
 	
 	void exit(ofEventArgs& args);
+    
+    void addGlobalMessage(string & message);
 	
   protected:
 	ofxTCPServer server;

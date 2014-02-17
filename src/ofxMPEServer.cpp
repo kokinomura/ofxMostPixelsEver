@@ -187,10 +187,9 @@ void ofxMPEServer::threadedFunction()
 					connections[c.id] = c;
 				
 					printClientStatus();
-
+                    
 				}
 				else if(splitResponse[0] == "A"){
-					
 					if(splitResponse.size() < 3){
 						ofLogError() << "MostPixelsEver Wrong number of arguments for asynchronous connection. Format is A|ID#|Name|RecieveMessages " << response;
 						continue;
@@ -206,6 +205,8 @@ void ofxMPEServer::threadedFunction()
 					c.tcpServerIndex = i;
 					
 					connections[c.id] = c;
+                    
+                    printClientStatus();
 				}
 				else if(splitResponse[0] == "T"){
 					
@@ -284,7 +285,7 @@ void ofxMPEServer::printClientStatus() {
 
 	map<int, Connection>::iterator it;
 	for(it = connections.begin(); it != connections.end(); it++){
-		ofLogNotice() << (it->second.asynchronous ? "synchronous " : "asynchronous ") <<
+		ofLogNotice() << (it->second.asynchronous ? "asynchronous " : "synchronous ") <<
 			" client #: " + ofToString(it->second.id) + ") "
 			<< it->second.name + " server index: " << it->second.tcpServerIndex;
 	}
@@ -310,4 +311,9 @@ void ofxMPEServer::close()
 		
 	}
 
+}
+
+void ofxMPEServer::addGlobalMessage(string & message) {
+    currentMessage += delimiter;
+    currentMessage += message;
 }
